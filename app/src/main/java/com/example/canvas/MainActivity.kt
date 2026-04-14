@@ -18,21 +18,13 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.LinearProgressIndicator
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
@@ -43,9 +35,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
@@ -58,19 +48,6 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.example.canvas.ui.theme.CanvasTheme
-import kotlinx.coroutines.launch
-import retrofit2.Retrofit
-import retrofit2.converter.gson.GsonConverterFactory
-
-// Replace with your actual Cloudflare Worker URL after deployment
-const val BASE_URL = "https://hello-ai.your-subdomain.workers.dev/"
-
-val retrofit: Retrofit = Retrofit.Builder()
-    .baseUrl(BASE_URL)
-    .addConverterFactory(GsonConverterFactory.create())
-    .build()
-
-val agentApi: AgentApiService = retrofit.create(AgentApiService::class.java)
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -94,11 +71,6 @@ data class Line(
 @Composable
 fun MainScreen() {
     val lines = remember { mutableStateListOf<Line>() }
-    val chatMessages = remember { mutableStateListOf<ChatMessage>() }
-    var userPrompt by remember { mutableStateOf("") }
-    var isAiLoading by remember { mutableStateOf(false) }
-    val scope = rememberCoroutineScope()
-
     val palette = remember {
         listOf(
             Color.Black,
@@ -114,7 +86,7 @@ fun MainScreen() {
 
     Scaffold(
         topBar = {
-            TopAppBar(title = { Text("AI Drawing Assistant") })
+            TopAppBar(title = { Text("Drawing Canvas") })
         },
         floatingActionButton = {
             FloatingActionButton(onClick = { lines.clear() }) {
@@ -136,85 +108,12 @@ fun MainScreen() {
                 onStrokeWidthChange = { strokeWidth = it }
             )
             Spacer(modifier = Modifier.height(8.dp))
-            
-            Box(modifier = Modifier.weight(1f)) {
-                DrawingCanvas(
-                    lines = lines,
-                    activeColor = selectedColor,
-                    activeStrokeWidth = strokeWidth,
-                    modifier = Modifier.fillMaxSize()
-                )
-            }
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            // AI Chat Section
-            Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(250.dp),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
-            ) {
-                Column(modifier = Modifier.padding(8.dp)) {
-                    Text(text = "Chat with Master Agent", style = MaterialTheme.typography.labelLarge)
-                    
-                    LazyColumn(modifier = Modifier.weight(1f)) {
-                        items(chatMessages) { msg ->
-                            Text(
-                                text = "${if (msg.role == "user") "You" else "AI"}: ${msg.content}",
-                                style = MaterialTheme.typography.bodySmall,
-                                modifier = Modifier.padding(vertical = 2.dp)
-                            )
-                        }
-                    }
-
-                    if (isAiLoading) {
-                        LinearProgressIndicator(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp))
-                    }
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        OutlinedTextField(
-                            value = userPrompt,
-                            onValueChange = { userPrompt = it },
-                            placeholder = { Text("Ask about your drawing...") },
-                            modifier = Modifier.weight(1f),
-                            textStyle = MaterialTheme.typography.bodySmall
-                        )
-                        IconButton(
-                            onClick = {
-                                if (userPrompt.isNotBlank()) {
-                                    val currentPrompt = userPrompt
-                                    chatMessages.add(ChatMessage("user", currentPrompt))
-                                    userPrompt = ""
-                                    isAiLoading = true
-                                    scope.launch {
-                                        try {
-                                            val response = agentApi.chat(ChatRequest(chatMessages.toList()))
-                                            if (response.isSuccessful) {
-                                                response.body()?.let {
-                                                    chatMessages.add(ChatMessage("assistant", it.response))
-                                                }
-                                            } else {
-                                                chatMessages.add(ChatMessage("assistant", "Error: ${response.code()}"))
-                                            }
-                                        } catch (e: Exception) {
-                                            chatMessages.add(ChatMessage("assistant", "Connection failed"))
-                                        } finally {
-                                            isAiLoading = false
-                                        }
-                                    }
-                                }
-                            },
-                            enabled = !isAiLoading
-                        ) {
-                            Icon(Icons.AutoMirrored.Filled.Send, contentDescription = "Send")
-                        }
-                    }
-                }
-            }
+            DrawingCanvas(
+                lines = lines,
+                activeColor = selectedColor,
+                activeStrokeWidth = strokeWidth,
+                modifier = Modifier.fillMaxSize()
+            )
         }
     }
 }
