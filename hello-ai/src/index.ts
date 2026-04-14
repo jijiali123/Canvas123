@@ -166,12 +166,26 @@ export default {
         });
       }
 
-      // Chat Endpoint
+      // Chat Endpoint (Multi-modal)
       if (url.pathname === "/api/chat" && request.method === "POST") {
         const config = await getConfig(env);
-        const { messages = [] } = await request.json() as any;
+        const body = await request.json() as any;
+        const { messages = [], image } = body;
+
+        let systemMessage = config.prompt;
+
+        // If an image is provided, we use a vision model to describe it first
+        if (image) {
+          const visionResponse = await env.AI.run("@cf/llava-hf/llava-1.5-7b-hf", {
+            image: [...Uint8Array.from(atob(image), c => c.charCodeAt(0))],
+            prompt: "Describe this drawing in detail, focusing on style, color, and subject.",
+            max_tokens: 512
+          });
+          systemMessage += "\n\nUser has provided a drawing. Description: " + visionResponse.description;
+        }
+
         if (!messages.some((m: any) => m.role === "system")) {
-          messages.unshift({ role: "system", content: config.prompt });
+          messages.unshift({ role: "system", content: systemMessage });
         }
 
         const response = await env.AI.run(config.model, { messages });
